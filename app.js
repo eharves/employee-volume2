@@ -1,34 +1,55 @@
 import express from "express";
+import employees from "./db/employees.js"; // keep your db folder
+
 const app = express();
-export default app;
+app.use(express.json());
 
-import employees from "#db/employees";
-
-app.route("/").get((req, res) => {
+app.get("/", (req, res) => {
   res.send("Hello employees!");
 });
 
-app.route("/employees").get((req, res) => {
-  res.send(employees);
+app.get("/employees", (req, res) => {
+  res.json(employees);
 });
 
-// Note: this middleware has to come first! Otherwise, Express will treat
-// "random" as the argument to the `id` parameter of /employees/:id.
-app.route("/employees/random").get((req, res) => {
+app.get("/employees/random", (req, res) => {
   const randomIndex = Math.floor(Math.random() * employees.length);
-  res.send(employees[randomIndex]);
+  res.json(employees[randomIndex]);
 });
 
-app.route("/employees/:id").get((req, res) => {
-  const { id } = req.params;
-
-  // req.params are always strings, so we need to convert `id` into a number
-  // before we can use it to find the employee
-  const employee = employees.find((e) => e.id === +id);
+app.get("/employees/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const employee = employees.find((e) => e.id === id);
 
   if (!employee) {
     return res.status(404).send("Employee not found");
   }
 
-  res.send(employee);
+  res.json(employee);
 });
+
+app.post("/employees", (req, res) => {
+  if (!req.body || typeof req.body !== "object") {
+    return res.status(400).send("Request body is required");
+  }
+
+  const { name } = req.body;
+  if (!name || typeof name !== "string" || name.trim() === "") {
+    return res.status(400).send("Name is required");
+  }
+
+  const newEmployee = {
+    id: employees.length ? employees[employees.length - 1].id + 1 : 1,
+    name: name.trim(),
+  };
+
+  employees.push(newEmployee);
+  res.status(201).json(newEmployee);
+});
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send("Something went wrong!");
+});
+
+export default app;
